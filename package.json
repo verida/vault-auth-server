@@ -1,0 +1,32 @@
+{
+  "name": "@verida/vault-auth-server",
+  "version": "0.1.0",
+  "description": "Verida Vault Authentication Server: Facilitates authentication between the browser and Verida Vault",
+  "main": "index.js",
+  "scripts": {
+    "start": "nodemon --exec babel-node src/server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/verida/vault-auth-server.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/verida/vault-auth-server/issues"
+  },
+  "homepage": "https://github.com/verida/vault-auth-server#readme",
+  "devDependencies": {
+    "@babel/core": "^7.11.6",
+    "@babel/node": "^7.10.5",
+    "@babel/polyfill": "^7.11.5",
+    "@babel/preset-env": "^7.11.5",
+    "nodemon": "^2.0.4"
+  },
+  "dependencies": {
+    "body-parser": "^1.19.0",
+    "cors": "^2.8.5",
+    "dotenv": "^8.2.0",
+    "express": "^4.17.1"
+  }
+}
