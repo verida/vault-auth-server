@@ -1,23 +1,23 @@
-import express from 'express';
-import cors from 'cors';
-import bodyParser from 'body-parser';
-import router from './routes';
+const WebSocket = require('ws')
+import SessionManager from './SessionManager'
 
-import dotenv from 'dotenv';
-dotenv.config();
+import dotenv from 'dotenv'
+dotenv.config()
 
-// Set up the express app
-const app = express();
+const PORT = process.env.PORT
 
-let corsConfig = {};
+const wss = new WebSocket.Server({
+  port: PORT
+})
 
-// Parse incoming requests data
-app.use(cors(corsConfig));
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: false }));
-app.use(router);
+wss.on('connection', async function connection(ws) {
+    const sessionId = await SessionManager.connect(ws)
 
-const PORT = 7001;
-app.listen(PORT, () => {
-  console.log(`server running on port ${PORT}`)
+    ws.on('message', (m) => {
+        SessionManager.message(sessionId, m)
+    });
+
+    ws.on('close', () => {
+        SessionManager.close(sessionId)
+    });
 });
