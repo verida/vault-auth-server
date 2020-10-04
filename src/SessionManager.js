@@ -32,7 +32,10 @@ class SessionManager {
         switch (message.type) {
             case 'generateJwt':
                 const requestJwt = await this.generateRequestJwt(veridaApp, sessionId)
-                socket.send(requestJwt)
+                socket.send(JSON.stringify({
+                    type: "auth",
+                    message: requestJwt
+                }))
                 break
             default:
                 // do nothing
