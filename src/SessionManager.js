@@ -33,26 +33,53 @@ class SessionManager {
             case 'generateJwt':
                 const requestJwt = await this.generateRequestJwt(veridaApp, sessionId)
                 socket.send(JSON.stringify({
-                    type: "auth",
+                    type: "auth-client-request",
                     message: requestJwt
                 }))
                 break
+            case 'responseJwt':
+                const response = await this.processResponseJwt(veridaApp, message.data)
+                socket.send(JSON.stringify({
+                    type: "auth-vault-response",
+                    message: response
+                }))
             default:
                 // do nothing
                 break
         }
     }
 
+    async processResponseJwt(veridaApp, messageData) {
+        const encryptedClientResponse = messageData.data
+        const sessionId = messageData.sessionId
+
+        // @todo: handle session not existing
+        const clientSocket = connections[sessionId]
+
+        // Send the response to the auth client
+        clientSocket.send(JSON.stringify({
+            type: "auth-client-response",
+            response: encryptedClientResponse
+        }))
+
+        return {
+            success: true
+        }
+    }
+
     async generateRequestJwt(veridaApp, sessionId) {
         const EXPIRY_OFFSET = process.env.EXPIRY_OFFSET
         const AUTH_URI = process.env.AUTH_URI
+        const LOGIN_DOMAIN = process.env.LOGIN_DOMAIN
         const now = Math.floor(Date.now() / 1000)
-        const expiry = now / 1000.0 + EXPIRY_OFFSET
+        const expiry = now + EXPIRY_OFFSET
 
         const data = {
             type: 'verida-wss-auth',
             session: sessionId,
-            authUri: AUTH_URI
+            appName: veridaApp.appName,
+            authUri: AUTH_URI,
+            loginDomain: LOGIN_DOMAIN
         }
 
         const didJwt = await veridaApp.user.createDidJwt(data, {
