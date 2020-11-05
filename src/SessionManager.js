@@ -3,12 +3,14 @@ import { v4 as uuidv4 } from 'uuid'
 import dotenv from 'dotenv'
 dotenv.config()
 
+const APP_NAME = 'Vault: Auth Server'
+
 const connections = {}
 const veridaApp = new Verida({
     chain: process.env.CHAIN,
     address: process.env.ADDRESS,
     privateKey: process.env.PRIVATE_KEY,
-    appName: 'Vault: Auth Server'
+    appName: APP_NAME
 })
 
 class SessionManager {
@@ -83,7 +85,8 @@ class SessionManager {
         }
 
         const didJwt = await veridaApp.user.createDidJwt(data, {
-            expiry: expiry
+            expiry: expiry,
+            appName: veridaApp.appName
         })
 
         return didJwt
