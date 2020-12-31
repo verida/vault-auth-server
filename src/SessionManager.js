@@ -40,10 +40,10 @@ class SessionManager {
                 }))
                 break
             case 'responseJwt':
-                const response = await this.processResponseJwt(veridaApp, message.data)
+                const response = await this.processResponseJwt(message.sessionId, message.data)
                 socket.send(JSON.stringify({
                     type: "auth-vault-response",
-                    message: response
+                    ...response
                 }))
             default:
                 // do nothing
@@ -51,12 +51,15 @@ class SessionManager {
         }
     }
 
-    async processResponseJwt(veridaApp, messageData) {
-        const encryptedClientResponse = messageData.data
-        const sessionId = messageData.sessionId
-
-        // @todo: handle session not existing
+    async processResponseJwt(sessionId, encryptedClientResponse) {
         const clientSocket = connections[sessionId]
+
+        if (!clientSocket) {
+            return {
+                success: false,
+                reason: `Unable to locate session: ${sessionId}`
+            }
+        }
 
         // Send the response to the auth client
         clientSocket.send(JSON.stringify({
