@@ -33,7 +33,7 @@ class SessionManager {
 
         switch (message.type) {
             case 'generateJwt':
-                const requestJwt = await this.generateRequestJwt(veridaApp, sessionId)
+                const requestJwt = await this.generateRequestJwt(veridaApp, sessionId, message.appName)
                 socket.send(JSON.stringify({
                     type: "auth-client-request",
                     message: requestJwt
@@ -57,14 +57,15 @@ class SessionManager {
         if (!clientSocket) {
             return {
                 success: false,
-                reason: `Unable to locate session: ${sessionId}`
+                message: `Unable to locate session: ${sessionId}`
             }
         }
 
         // Send the response to the auth client
         clientSocket.send(JSON.stringify({
             type: "auth-client-response",
-            response: encryptedClientResponse
+            success: true,
+            message: encryptedClientResponse
         }))
 
         return {
@@ -72,7 +73,7 @@ class SessionManager {
         }
     }
 
-    async generateRequestJwt(veridaApp, sessionId) {
+    async generateRequestJwt(veridaApp, sessionId, appName) {
         const EXPIRY_OFFSET = process.env.EXPIRY_OFFSET
         const AUTH_URI = process.env.AUTH_URI
         const LOGIN_DOMAIN = process.env.LOGIN_DOMAIN
@@ -82,14 +83,14 @@ class SessionManager {
         const data = {
             type: 'verida-wss-auth',
             session: sessionId,
-            appName: veridaApp.appName,
+            appName: appName,
             authUri: AUTH_URI,
             loginDomain: LOGIN_DOMAIN
         }
 
         const didJwt = await veridaApp.user.createDidJwt(data, {
             expiry: expiry,
-            appName: veridaApp.appName
+            appName: appName
         })
 
         return didJwt
