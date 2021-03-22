@@ -7,13 +7,7 @@ const APP_NAME = 'Vault: Auth Server'
 
 const connections = {}
 const requests = {}
-
-const veridaApp = new Verida({
-    chain: process.env.CHAIN,
-    address: process.env.ADDRESS,
-    privateKey: process.env.PRIVATE_KEY,
-    appName: APP_NAME
-})
+import { config as CONFIG } from '../config'
 
 function getRandomInt(min, max) {
     min = Math.ceil(min);
@@ -42,7 +36,15 @@ class SessionManager {
 
         switch (message.type) {
             case 'generateJwt':
-                const requestJwt = await this.generateRequestJwt(veridaApp, sessionId, message.appName)
+                if (typeof(CONFIG[message.appName]) == 'undefined') {
+                    socket.send(JSON.stringify({
+                        type: "error",
+                        message: 'Invalid application name'
+                    }))
+                    break
+                }
+
+                const requestJwt = await this.generateRequestJwt(sessionId, message.appName)
                 socket.send(JSON.stringify({
                     type: "auth-client-request",
                     message: requestJwt
@@ -96,10 +98,18 @@ class SessionManager {
         }
     }
 
-    async generateRequestJwt(veridaApp, sessionId, appName) {
+    async generateRequestJwt(sessionId, appName) {
+        const appConfig = CONFIG[appName]
+        const veridaApp = new Verida({
+            chain: appConfig.chain,
+            address: appConfig.address,
+            privateKey: appConfig.privateKey,
+            appName: appName
+        })
+
         const EXPIRY_OFFSET = parseInt(process.env.EXPIRY_OFFSET)
         const AUTH_URI = process.env.AUTH_URI
-        const LOGIN_DOMAIN = process.env.LOGIN_DOMAIN
+        const LOGIN_DOMAIN = appConfig.loginDomain
         const now = Math.floor(Date.now() / 1000)
         const expiry = now + EXPIRY_OFFSET
 
@@ -142,7 +152,6 @@ class SessionManager {
     // Garbage collect expired requests 5% of the time
     gc() {
         const random = getRandomInt(0,20)
-        console.log('random', random)
         if (random == 1) {
             for (var i in requests) {
                 let request = requests[i]
