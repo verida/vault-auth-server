@@ -1,5 +1,6 @@
 import Verida from '@verida/datastore'
 import { v4 as uuidv4 } from 'uuid'
+const _ = require("lodash")
 import dotenv from 'dotenv'
 dotenv.config()
 
@@ -44,10 +45,25 @@ class SessionManager {
                     break
                 }
 
-                const requestJwt = await this.generateRequestJwt(sessionId, message.appName)
+                const requestJwt = await this.generateRequestJwt(sessionId, message.appName, message.payload)
                 socket.send(JSON.stringify({
                     type: "auth-client-request",
                     message: requestJwt
+                }))
+                break
+            case 'getSession':
+                console.log(requests, message)
+                if (typeof(requests[message.data.sessionId]) == 'undefined') {
+                    socket.send(JSON.stringify({
+                        type: "error",
+                        message: 'Invalid session ID'
+                    }))
+                    break
+                }
+
+                socket.send(JSON.stringify({
+                    type: "auth-session",
+                    message: requests[message.data.sessionId]
                 }))
                 break
             case 'responseJwt':
@@ -98,7 +114,7 @@ class SessionManager {
         }
     }
 
-    async generateRequestJwt(sessionId, appName) {
+    async generateRequestJwt(sessionId, appName, payload) {
         const appConfig = CONFIG[appName]
         const veridaApp = new Verida({
             chain: appConfig.chain,
@@ -113,21 +129,23 @@ class SessionManager {
         const now = Math.floor(Date.now() / 1000)
         const expiry = now + EXPIRY_OFFSET
 
+        payload = _.merge({
+            appName: appName,
+            loginDomain: LOGIN_DOMAIN
+        }, payload)
+
         const data = {
             type: 'verida-wss-auth',
             session: sessionId,
-            appName: appName,
-            authUri: AUTH_URI,
-            loginDomain: LOGIN_DOMAIN
+            authUri: AUTH_URI
         }
 
         const didJwt = await veridaApp.user.createDidJwt(data, {
-            expiry: expiry,
-            appName: appName
+            expiry: expiry
         })
 
         data.expiry = expiry
-        requests[sessionId] = data
+        requests[sessionId] = payload
 
         return didJwt
     }
