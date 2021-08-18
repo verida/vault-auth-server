@@ -18,11 +18,15 @@ function getRandomInt(min, max) {
 
 class SessionManager {
 
-    async connect(socket) {
+    async connect(socket, req) {
         const sessionId = uuidv4()
         console.log("Created session: " + sessionId)
 
-        connections[sessionId] = socket
+        connections[sessionId] = {
+            socket,
+            origin: req.headers.origin
+        }
+
         console.log("Total sessions: " + Object.keys(connections).length)
         console.log("Total pending requests: " + Object.keys(requests).length)
 
@@ -33,7 +37,8 @@ class SessionManager {
         const message = JSON.parse(messageJson)
         console.log(`Message received from ${sessionId}:`, message)
 
-        const socket = connections[sessionId]
+        const socket = connections[sessionId].socket
+        const origin = connections[sessionId].origin
 
         switch (message.type) {
             case 'generateJwt':
@@ -43,6 +48,14 @@ class SessionManager {
                     socket.send(JSON.stringify({
                         type: "error",
                         message: 'Context name not configured'
+                    }))
+                    break
+                }
+
+                if (!this.verifyRequestDomain(contextConfig, origin)) {
+                    socket.send(JSON.stringify({
+                        type: "error",
+                        message: 'Permission denied. Request has come from an unauthorized domain.'
                     }))
                     break
                 }
@@ -82,7 +95,7 @@ class SessionManager {
     }
 
     async processResponseJwt(sessionId, encryptedClientResponse) {
-        const clientSocket = connections[sessionId]
+        const clientSocket = connections[sessionId].socket
         this.gc()
 
         if (!clientSocket) {
@@ -128,7 +141,7 @@ class SessionManager {
 
         const EXPIRY_OFFSET = parseInt(process.env.EXPIRY_OFFSET)
         const AUTH_URI = process.env.AUTH_URI
-        const LOGIN_DOMAIN = contextConfig.loginDomain
+        const LOGIN_DOMAIN = contextConfig.loginOrigin
         const now = Math.floor(Date.now() / 1000)
         const expiry = now + EXPIRY_OFFSET
 
@@ -187,6 +200,20 @@ class SessionManager {
         const defaultContextConfig = CONFIG.defaultContext ? CONFIG.defaultContext : null
         const contextConfig = CONFIG.contexts[contextName] ? CONFIG.contexts[contextName] : defaultContextConfig
         return contextConfig
+    }
+
+    verifyRequestDomain(contextConfig, origin) {
+        console.log(contextConfig, origin)
+        if (contextConfig.origin && contextConfig.origin == origin) {
+            return true
+        }
+
+        if (!contextConfig.origin) {
+            // Permit requests from all origins, if there is no origin specified
+            return true
+        }
+
+        return false
     }
 
 }

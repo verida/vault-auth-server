@@ -10,8 +10,8 @@ const wss = new WebSocket.Server({
   port: PORT
 })
 
-wss.on('connection', async function connection(ws) {
-    const sessionId = await SessionManager.connect(ws)
+wss.on('connection', async function connection(ws, req) {
+    const sessionId = await SessionManager.connect(ws, req)
 
     ws.on('message', (m) => {
         SessionManager.message(sessionId, m)
