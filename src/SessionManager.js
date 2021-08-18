@@ -37,15 +37,17 @@ class SessionManager {
 
         switch (message.type) {
             case 'generateJwt':
-                if (typeof(CONFIG[message.appName]) == 'undefined') {
+                const contextName = message.contextName ? message.contextName : message.appName
+                const contextConfig = this.getContextConfig(contextName)
+                if (!contextConfig) {
                     socket.send(JSON.stringify({
                         type: "error",
-                        message: 'Invalid application name'
+                        message: 'Context name not configured'
                     }))
                     break
                 }
 
-                const requestJwt = await this.generateRequestJwt(sessionId, message.appName, message.payload)
+                const requestJwt = await this.generateRequestJwt(sessionId, contextName, message.payload)
                 socket.send(JSON.stringify({
                     type: "auth-client-request",
                     message: requestJwt
@@ -114,23 +116,24 @@ class SessionManager {
         }
     }
 
-    async generateRequestJwt(sessionId, appName, payload) {
-        const appConfig = CONFIG[appName]
+    async generateRequestJwt(sessionId, contextName, payload) {
+        const contextConfig = this.getContextConfig(contextName)
+
         const veridaApp = new Verida({
-            chain: appConfig.chain,
-            address: appConfig.address,
-            privateKey: appConfig.privateKey,
-            appName: appName
+            chain: contextConfig.chain,
+            address: contextConfig.address,
+            privateKey: contextConfig.privateKey,
+            appName: contextName
         })
 
         const EXPIRY_OFFSET = parseInt(process.env.EXPIRY_OFFSET)
         const AUTH_URI = process.env.AUTH_URI
-        const LOGIN_DOMAIN = appConfig.loginDomain
+        const LOGIN_DOMAIN = contextConfig.loginDomain
         const now = Math.floor(Date.now() / 1000)
         const expiry = now + EXPIRY_OFFSET
 
         payload = _.merge({
-            appName: appName,
+            appName: contextName,       // todo: update when we transition to context name not app name
             loginDomain: LOGIN_DOMAIN
         }, payload)
 
@@ -178,6 +181,12 @@ class SessionManager {
                 }
             }
         }
+    }
+
+    getContextConfig(contextName) {
+        const defaultContextConfig = CONFIG.defaultContext ? CONFIG.defaultContext : null
+        const contextConfig = CONFIG.contexts[contextName] ? CONFIG.contexts[contextName] : defaultContextConfig
+        return contextConfig
     }
 
 }
