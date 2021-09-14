@@ -136,7 +136,8 @@ class SessionManager {
             chain: contextConfig.chain,
             address: contextConfig.address,
             privateKey: contextConfig.privateKey,
-            appName: contextName
+            appName: contextName,
+            contextName
         })
 
         const EXPIRY_OFFSET = parseInt(process.env.EXPIRY_OFFSET)
@@ -147,6 +148,7 @@ class SessionManager {
 
         payload = _.merge({
             appName: contextName,       // todo: update when we transition to context name not app name
+            contextName,
             loginDomain: LOGIN_DOMAIN
         }, payload)
 
