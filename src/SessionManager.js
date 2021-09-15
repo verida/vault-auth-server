@@ -69,7 +69,6 @@ class SessionManager {
                 }))
                 break
             case 'getSession':
-                console.log(requests, message)
                 if (typeof(requests[message.data.sessionId]) == 'undefined') {
                     socket.send(JSON.stringify({
                         type: "error",
@@ -132,12 +131,13 @@ class SessionManager {
     }
 
     async generateRequestJwt(sessionId, contextName, payload) {
-        const context = this.getContext(contextName)
-        const account = context.getAccount()
+        const context = await this.getContext(contextName)
+        const account = await context.getAccount()
+        const contextConfig = this.getContextConfig(contextName)
 
         const EXPIRY_OFFSET = parseInt(process.env.EXPIRY_OFFSET)
         const AUTH_URI = process.env.AUTH_URI
-        const LOGIN_DOMAIN = contexts[contextName].loginOrigin
+        const LOGIN_DOMAIN = contextConfig.loginOrigin
         const now = Math.floor(Date.now() / 1000)
         const expiry = now + EXPIRY_OFFSET
 
@@ -193,17 +193,20 @@ class SessionManager {
         }
     }
 
-    getContext(contextName) {
+    getContextConfig(contextName) {
+        const defaultContextConfig = CONFIG.defaultContext ? CONFIG.defaultContext : null
+        const contextConfig = CONFIG.contexts[contextName] ? CONFIG.contexts[contextName] : defaultContextConfig
+        return contextConfig
+    }
+
+    async getContext(contextName) {
         if (typeof(contexts[contextName]) !== "undefined") {
-            console.log("loading context from cache", contextName)
             return contexts[contextName]
         }
 
-        const defaultContextConfig = CONFIG.defaultContext ? CONFIG.defaultContext : null
-        const contextConfig = CONFIG.contexts[contextName] ? CONFIG.contexts[contextName] : defaultContextConfig
-
+        const contextConfig = this.getContextConfig(contextName)
         const account = new AutoAccount(contextConfig.chain, contextConfig.privateKey)
-        const context = Network.connect({
+        const context = await Network.connect({
             context: {
                 name: contextName
             },
@@ -221,13 +224,10 @@ class SessionManager {
         })
 
         contexts[contextName] = context
-        console.log("created context", contextName, context)
-
         return contexts[contextName]
     }
 
     verifyRequestDomain(contextConfig, origin) {
-        console.log(contextConfig, origin)
         if (contextConfig.origin && contextConfig.origin == origin) {
             return true
         }
