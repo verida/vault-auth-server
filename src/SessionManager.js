@@ -1,4 +1,5 @@
-import Verida from '@verida/datastore'
+import { Network } from "@verida/client-ts"
+import { AutoAccount } from "@verida/account-node"
 import { v4 as uuidv4 } from 'uuid'
 const _ = require("lodash")
 import dotenv from 'dotenv'
@@ -8,6 +9,7 @@ const APP_NAME = 'Vault: Auth Server'
 
 const connections = {}
 const requests = {}
+const contexts = {}
 import { config as CONFIG } from '../config'
 
 function getRandomInt(min, max) {
@@ -42,7 +44,7 @@ class SessionManager {
 
         switch (message.type) {
             case 'generateJwt':
-                const contextName = message.contextName ? message.contextName : message.appName
+                const contextName = message.contextName
                 const contextConfig = this.getContextConfig(contextName)
                 if (!contextConfig) {
                     socket.send(JSON.stringify({
@@ -130,24 +132,17 @@ class SessionManager {
     }
 
     async generateRequestJwt(sessionId, contextName, payload) {
-        const contextConfig = this.getContextConfig(contextName)
-
-        const veridaApp = new Verida({
-            chain: contextConfig.chain,
-            address: contextConfig.address,
-            privateKey: contextConfig.privateKey,
-            appName: contextName,
-            contextName
-        })
+        const context = this.getContext(contextName)
+        const account = context.getAccount()
 
         const EXPIRY_OFFSET = parseInt(process.env.EXPIRY_OFFSET)
         const AUTH_URI = process.env.AUTH_URI
-        const LOGIN_DOMAIN = contextConfig.loginOrigin
+        const LOGIN_DOMAIN = contexts[contextName].loginOrigin
         const now = Math.floor(Date.now() / 1000)
         const expiry = now + EXPIRY_OFFSET
 
         payload = _.merge({
-            appName: contextName,       // todo: update when we transition to context name not app name
+            context: contextName,       // todo: update when we transition to context name not app name
             contextName,
             loginDomain: LOGIN_DOMAIN
         }, payload)
@@ -158,7 +153,7 @@ class SessionManager {
             authUri: AUTH_URI
         }
 
-        const didJwt = await veridaApp.user.createDidJwt(data, {
+        const didJwt = await account.createDidJwt(contextName, data, {
             expiry: expiry
         })
 
@@ -198,10 +193,37 @@ class SessionManager {
         }
     }
 
-    getContextConfig(contextName) {
+    getContext(contextName) {
+        if (typeof(contexts[contextName]) !== "undefined") {
+            console.log("loading context from cache", contextName)
+            return contexts[contextName]
+        }
+
         const defaultContextConfig = CONFIG.defaultContext ? CONFIG.defaultContext : null
         const contextConfig = CONFIG.contexts[contextName] ? CONFIG.contexts[contextName] : defaultContextConfig
-        return contextConfig
+
+        const account = new AutoAccount(contextConfig.chain, contextConfig.privateKey)
+        const context = Network.connect({
+            context: {
+                name: contextName
+            },
+            client: {
+                defaultDatabaseServer: {
+                    type: 'VeridaDatabase',
+                    endpointUri: 'https://db.testnet.verida.io:5001/'
+                },
+                defaultMessageServer: {
+                    type: 'VeridaMessage',
+                    endpointUri: 'https://db.testnet.verida.io:5001/'
+                }
+            },
+            account
+        })
+
+        contexts[contextName] = context
+        console.log("created context", contextName, context)
+
+        return contexts[contextName]
     }
 
     verifyRequestDomain(contextConfig, origin) {
