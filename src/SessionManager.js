@@ -44,7 +44,7 @@ class SessionManager {
 
         switch (message.type) {
             case 'generateJwt':
-                const contextName = message.contextName
+                const contextName = message.context
                 const contextConfig = this.getContextConfig(contextName)
                 if (!contextConfig) {
                     socket.send(JSON.stringify({
@@ -141,11 +141,10 @@ class SessionManager {
         const now = Math.floor(Date.now() / 1000)
         const expiry = now + EXPIRY_OFFSET
 
-        payload = _.merge({
+        payload = _.merge(payload, {
             context: contextName,       // todo: update when we transition to context name not app name
-            contextName,
             loginDomain: LOGIN_DOMAIN
-        }, payload)
+        })
 
         const data = {
             type: 'verida-wss-auth',
