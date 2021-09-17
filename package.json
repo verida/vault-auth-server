@@ -1,6 +1,6 @@
 {
   "name": "@verida/vault-auth-server",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Verida Vault Authentication Server: Facilitates authentication between the browser and Verida Vault",
   "main": "index.js",
   "scripts": {
