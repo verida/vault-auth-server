@@ -62,11 +62,20 @@ class SessionManager {
                     break
                 }
 
-                const requestJwt = await this.generateRequestJwt(sessionId, contextName, message.payload)
-                socket.send(JSON.stringify({
-                    type: "auth-client-request",
-                    message: requestJwt
-                }))
+                try {
+                    const requestJwt = await this.generateRequestJwt(sessionId, contextName, message.payload)
+                    socket.send(JSON.stringify({
+                        type: "auth-client-request",
+                        message: requestJwt
+                    }))
+                } catch (err) {
+                    console.error(err)
+                    socket.send(JSON.stringify({
+                        type: "error",
+                        message: 'Unknown error occurred. Please try again.'
+                    }))
+                }
+                
                 break
             case 'getSession':
                 if (typeof(requests[message.data.sessionId]) == 'undefined') {
