@@ -1,4 +1,5 @@
-import Verida from '@verida/datastore'
+import { Network } from "@verida/client-ts"
+import { AutoAccount } from "@verida/account-node"
 import { v4 as uuidv4 } from 'uuid'
 const _ = require("lodash")
 import dotenv from 'dotenv'
@@ -8,6 +9,7 @@ const APP_NAME = 'Vault: Auth Server'
 
 const connections = {}
 const requests = {}
+const contexts = {}
 import { config as CONFIG } from '../config'
 
 function getRandomInt(min, max) {
@@ -42,7 +44,7 @@ class SessionManager {
 
         switch (message.type) {
             case 'generateJwt':
-                const contextName = message.contextName ? message.contextName : message.appName
+                const contextName = message.context
                 const contextConfig = this.getContextConfig(contextName)
                 if (!contextConfig) {
                     socket.send(JSON.stringify({
@@ -60,14 +62,22 @@ class SessionManager {
                     break
                 }
 
-                const requestJwt = await this.generateRequestJwt(sessionId, contextName, message.payload)
-                socket.send(JSON.stringify({
-                    type: "auth-client-request",
-                    message: requestJwt
-                }))
+                try {
+                    const requestJwt = await this.generateRequestJwt(sessionId, contextName, message.payload)
+                    socket.send(JSON.stringify({
+                        type: "auth-client-request",
+                        message: requestJwt
+                    }))
+                } catch (err) {
+                    console.error(err)
+                    socket.send(JSON.stringify({
+                        type: "error",
+                        message: 'Unknown error occurred. Please try again.'
+                    }))
+                }
+                
                 break
             case 'getSession':
-                console.log(requests, message)
                 if (typeof(requests[message.data.sessionId]) == 'undefined') {
                     socket.send(JSON.stringify({
                         type: "error",
@@ -130,15 +140,9 @@ class SessionManager {
     }
 
     async generateRequestJwt(sessionId, contextName, payload) {
+        const context = await this.getContext(contextName)
+        const account = await context.getAccount()
         const contextConfig = this.getContextConfig(contextName)
-
-        const veridaApp = new Verida({
-            chain: contextConfig.chain,
-            address: contextConfig.address,
-            privateKey: contextConfig.privateKey,
-            appName: contextName,
-            contextName
-        })
 
         const EXPIRY_OFFSET = parseInt(process.env.EXPIRY_OFFSET)
         const AUTH_URI = process.env.AUTH_URI
@@ -146,11 +150,10 @@ class SessionManager {
         const now = Math.floor(Date.now() / 1000)
         const expiry = now + EXPIRY_OFFSET
 
-        payload = _.merge({
-            appName: contextName,       // todo: update when we transition to context name not app name
-            contextName,
+        payload = _.merge(payload, {
+            context: contextName,       // todo: update when we transition to context name not app name
             loginDomain: LOGIN_DOMAIN
-        }, payload)
+        })
 
         const data = {
             type: 'verida-wss-auth',
@@ -158,7 +161,7 @@ class SessionManager {
             authUri: AUTH_URI
         }
 
-        const didJwt = await veridaApp.user.createDidJwt(data, {
+        const didJwt = await account.createDidJwt(contextName, data, {
             expiry: expiry
         })
 
@@ -204,8 +207,35 @@ class SessionManager {
         return contextConfig
     }
 
+    async getContext(contextName) {
+        if (typeof(contexts[contextName]) !== "undefined") {
+            return contexts[contextName]
+        }
+
+        const contextConfig = this.getContextConfig(contextName)
+        const account = new AutoAccount(contextConfig.chain, contextConfig.privateKey)
+        const context = await Network.connect({
+            context: {
+                name: contextName
+            },
+            client: {
+                defaultDatabaseServer: {
+                    type: 'VeridaDatabase',
+                    endpointUri: 'https://db.testnet.verida.io:5001/'
+                },
+                defaultMessageServer: {
+                    type: 'VeridaMessage',
+                    endpointUri: 'https://db.testnet.verida.io:5001/'
+                }
+            },
+            account
+        })
+
+        contexts[contextName] = context
+        return contexts[contextName]
+    }
+
     verifyRequestDomain(contextConfig, origin) {
-        console.log(contextConfig, origin)
         if (contextConfig.origin && contextConfig.origin == origin) {
             return true
         }
