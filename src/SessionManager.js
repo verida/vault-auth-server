@@ -45,7 +45,16 @@ class SessionManager {
         switch (message.type) {
             case 'generateJwt':
                 const contextName = message.context
-                const contextConfig = this.getContextConfig(contextName)
+                try {
+                    const contextConfig = this.getContextConfig(contextName)
+                } catch (err) {
+                    console.error(err)
+                    socket.send(JSON.stringify({
+                        type: "error",
+                        message: 'Unknown error occurred. Please try again.'
+                    }))
+                }
+                
                 if (!contextConfig) {
                     socket.send(JSON.stringify({
                         type: "error",
