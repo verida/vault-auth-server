@@ -45,8 +45,9 @@ class SessionManager {
         switch (message.type) {
             case 'generateJwt':
                 const contextName = message.context
+                let contextConfig
                 try {
-                    const contextConfig = this.getContextConfig(contextName)
+                    contextConfig = this.getContextConfig(contextName)
                 } catch (err) {
                     console.error(err)
                     socket.send(JSON.stringify({
@@ -222,21 +223,25 @@ class SessionManager {
         }
 
         const contextConfig = this.getContextConfig(contextName)
-        const account = new AutoAccount(contextConfig.chain, contextConfig.privateKey)
+        const account = new AutoAccount({
+            defaultDatabaseServer: {
+                type: 'VeridaDatabase',
+                endpointUri: 'https://db.testnet.verida.io:5001/'
+            },
+            defaultMessageServer: {
+                type: 'VeridaMessage',
+                endpointUri: 'https://db.testnet.verida.io:5001/'
+            }
+        }, {
+            chain: contextConfig.chain, 
+            privateKey: contextConfig.privateKey
+        })
+
         const context = await Network.connect({
             context: {
                 name: contextName
             },
-            client: {
-                defaultDatabaseServer: {
-                    type: 'VeridaDatabase',
-                    endpointUri: 'https://db.testnet.verida.io:5001/'
-                },
-                defaultMessageServer: {
-                    type: 'VeridaMessage',
-                    endpointUri: 'https://db.testnet.verida.io:5001/'
-                }
-            },
+            client: {},
             account
         })
 
