@@ -1,5 +1,5 @@
 
-export const config = {
+export default {
     contexts: {
         'Verida: Auth client demo': {
             chain: 'ethr',

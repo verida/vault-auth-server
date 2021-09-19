@@ -10,7 +10,7 @@ const APP_NAME = 'Vault: Auth Server'
 const connections = {}
 const requests = {}
 const contexts = {}
-import { config as CONFIG } from '../config'
+import CONFIG from './config'
 
 function getRandomInt(min, max) {
     min = Math.ceil(min);
