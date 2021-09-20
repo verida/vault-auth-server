@@ -7,4 +7,4 @@
 # yarn global add pm2
 #
 
-~/.yarn/bin/pm2 start ~/.nvm/versions/node/v12.14.1/bin/yarn --name vault-auth-server -- server
+~/.yarn/bin/pm2 start ~/.nvm/versions/node/v12.14.1/bin/yarn --name vault-auth-server -- serve
