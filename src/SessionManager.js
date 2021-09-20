@@ -45,7 +45,8 @@ class SessionManager {
         switch (message.type) {
             case 'generateJwt':
                 const contextName = message.context
-                let contextConfig
+                let contextConfig = null
+
                 try {
                     contextConfig = this.getContextConfig(contextName)
                 } catch (err) {
@@ -54,6 +55,7 @@ class SessionManager {
                         type: "error",
                         message: 'Unknown error occurred. Please try again.'
                     }))
+                    return
                 }
                 
                 if (!contextConfig) {
@@ -61,7 +63,7 @@ class SessionManager {
                         type: "error",
                         message: 'Context name not configured'
                     }))
-                    break
+                    return
                 }
 
                 if (!this.verifyRequestDomain(contextConfig, origin)) {
@@ -69,7 +71,7 @@ class SessionManager {
                         type: "error",
                         message: 'Permission denied. Request has come from an unauthorized domain.'
                     }))
-                    break
+                    return
                 }
 
                 try {
@@ -84,6 +86,7 @@ class SessionManager {
                         type: "error",
                         message: 'Unknown error occurred. Please try again.'
                     }))
+                    return
                 }
                 
                 break
