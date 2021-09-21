@@ -39,6 +39,12 @@ class SessionManager {
         const message = JSON.parse(messageJson)
         console.log(`Message received from ${sessionId}:`, message)
 
+        if (!connections[sessionId]) {
+            // Unable to locate the session
+            console.err("Unable to locate session: ", sessionId)
+            return
+        }
+
         const socket = connections[sessionId].socket
         const origin = connections[sessionId].origin
 
