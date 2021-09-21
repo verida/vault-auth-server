@@ -54,3 +54,4 @@ Monitoring the server:
 $ pm2 monit
 ```
 
+It's also recommended to install `pm2-logrotate` which is useful to manage logs on the server.
