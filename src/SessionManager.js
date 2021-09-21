@@ -56,10 +56,11 @@ class SessionManager {
                 try {
                     contextConfig = this.getContextConfig(contextName)
                 } catch (err) {
+                    console.error(err.message)
                     console.error(err)
                     socket.send(JSON.stringify({
                         type: "error",
-                        message: 'Unknown error occurred. Please try again.'
+                        message: `Unknown error occurred fetching context config for ${contextName}. Please try again.`
                     }))
                     return
                 }
@@ -87,10 +88,11 @@ class SessionManager {
                         message: requestJwt
                     }))
                 } catch (err) {
+                    console.error(err.message)
                     console.error(err)
                     socket.send(JSON.stringify({
                         type: "error",
-                        message: 'Unknown error occurred. Please try again.'
+                        message: `Unknown error occurred generating request JWT for ${contextName}. Please try again.`
                     }))
                     return
                 }
