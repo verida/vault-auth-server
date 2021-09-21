@@ -10,7 +10,7 @@ const APP_NAME = 'Vault: Auth Server'
 const connections = {}
 const requests = {}
 const contexts = {}
-import { config as CONFIG } from '../config'
+import CONFIG from './config'
 
 function getRandomInt(min, max) {
     min = Math.ceil(min);
@@ -39,19 +39,38 @@ class SessionManager {
         const message = JSON.parse(messageJson)
         console.log(`Message received from ${sessionId}:`, message)
 
+        if (!connections[sessionId]) {
+            // Unable to locate the session
+            console.err("Unable to locate session: ", sessionId)
+            return
+        }
+
         const socket = connections[sessionId].socket
         const origin = connections[sessionId].origin
 
         switch (message.type) {
             case 'generateJwt':
                 const contextName = message.context
-                const contextConfig = this.getContextConfig(contextName)
+                let contextConfig = null
+
+                try {
+                    contextConfig = this.getContextConfig(contextName)
+                } catch (err) {
+                    console.error(err.message)
+                    console.error(err)
+                    socket.send(JSON.stringify({
+                        type: "error",
+                        message: `Unknown error occurred fetching context config for ${contextName}. Please try again.`
+                    }))
+                    return
+                }
+                
                 if (!contextConfig) {
                     socket.send(JSON.stringify({
                         type: "error",
                         message: 'Context name not configured'
                     }))
-                    break
+                    return
                 }
 
                 if (!this.verifyRequestDomain(contextConfig, origin)) {
@@ -59,7 +78,7 @@ class SessionManager {
                         type: "error",
                         message: 'Permission denied. Request has come from an unauthorized domain.'
                     }))
-                    break
+                    return
                 }
 
                 try {
@@ -69,11 +88,13 @@ class SessionManager {
                         message: requestJwt
                     }))
                 } catch (err) {
+                    console.error(err.message)
                     console.error(err)
                     socket.send(JSON.stringify({
                         type: "error",
-                        message: 'Unknown error occurred. Please try again.'
+                        message: `Unknown error occurred generating request JWT for ${contextName}. Please try again.`
                     }))
+                    return
                 }
                 
                 break
@@ -213,21 +234,25 @@ class SessionManager {
         }
 
         const contextConfig = this.getContextConfig(contextName)
-        const account = new AutoAccount(contextConfig.chain, contextConfig.privateKey)
+        const account = new AutoAccount({
+            defaultDatabaseServer: {
+                type: 'VeridaDatabase',
+                endpointUri: 'https://db.testnet.verida.io:5001/'
+            },
+            defaultMessageServer: {
+                type: 'VeridaMessage',
+                endpointUri: 'https://db.testnet.verida.io:5001/'
+            }
+        }, {
+            chain: contextConfig.chain, 
+            privateKey: contextConfig.privateKey
+        })
+
         const context = await Network.connect({
             context: {
                 name: contextName
             },
-            client: {
-                defaultDatabaseServer: {
-                    type: 'VeridaDatabase',
-                    endpointUri: 'https://db.testnet.verida.io:5001/'
-                },
-                defaultMessageServer: {
-                    type: 'VeridaMessage',
-                    endpointUri: 'https://db.testnet.verida.io:5001/'
-                }
-            },
+            client: {},
             account
         })
 
