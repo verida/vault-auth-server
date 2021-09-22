@@ -1675,35 +1675,35 @@
     "@ceramicnetwork/http-client" "^1.2.0"
     ethers "^5.4.1"
 
-"@verida/account-node@^1.0.0":
-  version "1.0.0"
-  resolved "https://registry.yarnpkg.com/@verida/account-node/-/account-node-1.0.0.tgz#fad0a9305e50a2677a3fea0d2caf9bbb27c90cb6"
-  integrity sha512-gDX7Zwq+se8Jota8oR7K9olonEE9xHp7J9tJyHp+0MjATeSFAd73RdPjUSCaae5be8YpyWqMmpTQegriblw/ZA==
+"@verida/account-node@^1.0.1":
+  version "1.0.1"
+  resolved "https://registry.yarnpkg.com/@verida/account-node/-/account-node-1.0.1.tgz#cb85a17f99057f4a0294f0a1360daf2edbac9f2b"
+  integrity sha512-qR9sUmBSJmxqHT5u+3CpTKW27VjiFvG4Ox7ir3PTiOhSKjSkzJgSheOefoHkWqfm45SYKUXII2G8TbxsFLIQrg==
   dependencies:
     "@ceramicnetwork/http-client" "^1.2.0"
-    "@verida/account" "^1.0.0"
-    "@verida/keyring" "^1.0.0"
+    "@verida/account" "^1.0.1"
+    "@verida/keyring" "^1.0.1"
 
-"@verida/account@^1.0.0":
-  version "1.0.0"
-  resolved "https://registry.yarnpkg.com/@verida/account/-/account-1.0.0.tgz#fc0f336a5382faec695f9f1f78ce02dbab787e63"
-  integrity sha512-eyCRIxQLqT50reEMfD6I3DZFH+U/HktgOxETv7ubRjbkP1Ap4XcXlmEqAFypXC5UIRwScL+mKCwSOHx8MjScsQ==
+"@verida/account@^1.0.1":
+  version "1.0.1"
+  resolved "https://registry.yarnpkg.com/@verida/account/-/account-1.0.1.tgz#1ba631867c8109774ef42b26ac0f4b2282ba6915"
+  integrity sha512-z8Kv+mybak+SDEfSXpI4F+XB6ser82XqdXW5K0q4mU6m2lkBHp3pW1fWQtW8TnSUBP/IFX85N8vcNfsAwstA5Q==
   dependencies:
-    "@verida/keyring" "^1.0.0"
-    "@verida/storage-link" "^1.0.0"
+    "@verida/keyring" "^1.0.1"
+    "@verida/storage-link" "^1.0.1"
     did-jwt "^5.7.0"
     lodash "^4.17.21"
     tweetnacl-util "^0.15.1"
 
-"@verida/client-ts@^1.0.0":
-  version "1.0.0"
-  resolved "https://registry.yarnpkg.com/@verida/client-ts/-/client-ts-1.0.0.tgz#6ac7472090b862cb7ad270a851dad5f71e91fb4b"
-  integrity sha512-uMst4w4moUcbExRqkCMr4qYbJuZAUaVZwwgINfrgZjvjr8FvfMBCxRx1MwSmWD0kS3tjcDt4Y+0NVUtlRuRJfw==
+"@verida/client-ts@^1.0.1":
+  version "1.0.1"
+  resolved "https://registry.yarnpkg.com/@verida/client-ts/-/client-ts-1.0.1.tgz#a3759d6e3431ab00fbad84ed2bdaedf051a38ce1"
+  integrity sha512-mfaorFLsOq6ak7VAB+QE3TqK1sidmKpSIxQwHFgSQYGS7VVDwJKtyW142ciakQZW/h+Rqf59D+i2Dbi0C+d7AA==
   dependencies:
     "@ceramicnetwork/http-client" "^1.2.0"
     "@verida/encryption-utils" "^1.0.0"
-    "@verida/keyring" "^1.0.0"
-    "@verida/storage-link" "^1.0.0"
+    "@verida/keyring" "^1.0.1"
+    "@verida/storage-link" "^1.0.1"
     ajv "^8.6.2"
     axios "^0.21.1"
     bs58 "^4.0.1"
@@ -1714,6 +1714,7 @@
     lodash "^4.17.21"
     pouchdb "^7.2.2"
     pouchdb-find "^7.2.2"
+    uuid "^8.3.2"
 
 "@verida/encryption-utils@^1.0.0":
   version "1.0.0"
@@ -1723,10 +1724,10 @@
     tweetnacl "^1.0.3"
     tweetnacl-util "^0.15.1"
 
-"@verida/keyring@^1.0.0":
-  version "1.0.0"
-  resolved "https://registry.yarnpkg.com/@verida/keyring/-/keyring-1.0.0.tgz#455717cf9895bebad86c0203b161a7620ee1d818"
-  integrity sha512-dUGlNxEczmiLfW/0DHMwj1YUsfISFyBKX5dfj/3WrtoLgW13WLfyP9veVnrYw+o5bqJ0YbdiRnw4grEHmzXwyw==
+"@verida/keyring@^1.0.1":
+  version "1.0.1"
+  resolved "https://registry.yarnpkg.com/@verida/keyring/-/keyring-1.0.1.tgz#38ce08de2400f43a675256ecabbcdd3e58297ae0"
+  integrity sha512-gGyB6BoX2wcUXX+ZRVH2q/3oIRgJsH9B3GwKU4cy7YzaOYh+PXdBDQaQtNear/5BqadB7ubqBGBRivWlzuMf6g==
   dependencies:
     "@verida/encryption-utils" "^1.0.0"
     bs58 "^4.0.1"
@@ -1734,15 +1735,15 @@
     tweetnacl "^1.0.3"
     uuid "^8.3.2"
 
-"@verida/storage-link@^1.0.0":
-  version "1.0.0"
-  resolved "https://registry.yarnpkg.com/@verida/storage-link/-/storage-link-1.0.0.tgz#4be5167f2d8fe5834d497a6f543b12a21c8335b9"
-  integrity sha512-zRdbHA77DKHqbAwyHpTd3I6YXVRtkPCEhaEadLpjkEELfUzO2PmYPRT9ShK7NkbKwlGr7AQ7klJBrwKh2q197g==
+"@verida/storage-link@^1.0.1":
+  version "1.0.1"
+  resolved "https://registry.yarnpkg.com/@verida/storage-link/-/storage-link-1.0.1.tgz#736a6ee9f2af75852254443fd5758f9fa179bb48"
+  integrity sha512-uz5imNqdr5/wc05196Ho8pl9CmJ9p172KxRv65PABJX1qZQYTz4sKQSQNgaHd0Z2RYMZL12k6h/J08Q2a7LJ/w==
   dependencies:
     "@ceramicnetwork/http-client" "^1.2.0"
     "@ceramicstudio/idx" "^0.12.1"
     "@verida/3id-utils-node" "^1.0.0"
-    "@verida/keyring" "^1.0.0"
+    "@verida/keyring" "^1.0.1"
     jssha "^3.2.0"
 
 abbrev@1:
@@ -2292,9 +2293,9 @@ cross-fetch@^3.0.6, cross-fetch@^3.1.4:
   dependencies:
     node-fetch "2.6.1"
 
-"crypto-pouch@https://github.com/tahpot/crypto-pouch.git#feature/support-key-import":
+"crypto-pouch@git+https://github.com/tahpot/crypto-pouch.git#feature/support-key-import":
   version "4.0.1"
-  resolved "https://github.com/tahpot/crypto-pouch.git#26b27159a8ea039a2ac9382945fe48ed7bc2ccd9"
+  resolved "git+https://github.com/tahpot/crypto-pouch.git#26b27159a8ea039a2ac9382945fe48ed7bc2ccd9"
   dependencies:
     garbados-crypt "^3.0.0-beta"
     transform-pouch "^2.0.0"
