@@ -82,7 +82,7 @@ class SessionManager {
                 }
 
                 try {
-                    const requestJwt = await this.generateRequestJwt(sessionId, contextName, message.payload)
+                    const requestJwt = await this.generateRequestJwt(sessionId, contextName, message.payload, origin)
                     socket.send(JSON.stringify({
                         type: "auth-client-request",
                         message: requestJwt
@@ -160,14 +160,14 @@ class SessionManager {
         }
     }
 
-    async generateRequestJwt(sessionId, contextName, payload) {
+    async generateRequestJwt(sessionId, contextName, payload, origin) {
         const context = await this.getContext(contextName)
         const account = await context.getAccount()
         const contextConfig = this.getContextConfig(contextName)
 
         const EXPIRY_OFFSET = parseInt(process.env.EXPIRY_OFFSET)
         const AUTH_URI = process.env.AUTH_URI
-        const LOGIN_DOMAIN = contextConfig.loginOrigin
+        const LOGIN_DOMAIN = contextConfig.loginOrigin ? contextConfig.loginOrigin : origin
         const now = Math.floor(Date.now() / 1000)
         const expiry = now + EXPIRY_OFFSET
 
