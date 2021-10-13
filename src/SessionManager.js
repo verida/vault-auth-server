@@ -143,7 +143,7 @@ class SessionManager {
         if (!request || this.hasRequestExpired(request)) {
             return {
                 success: false,
-                coide: 51,
+                code: 51,
                 message: `Request has expired, try reloading the QR code`
             }
         }
