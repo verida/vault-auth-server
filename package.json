@@ -27,8 +27,8 @@
     "nodemon": "^2.0.4"
   },
   "dependencies": {
-    "@verida/account-node": "^1.0.1",
-    "@verida/client-ts": "^1.0.1",
+    "@verida/account-node": "^1.1.2",
+    "@verida/client-ts": "^1.1.2",
     "body-parser": "^1.19.0",
     "cors": "^2.8.5",
     "dotenv": "^8.2.0",

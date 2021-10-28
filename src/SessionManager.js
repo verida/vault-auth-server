@@ -244,7 +244,7 @@ class SessionManager {
                 endpointUri: 'https://db.testnet.verida.io:5001/'
             }
         }, {
-            chain: contextConfig.chain, 
+            environment: CONFIG.environment,
             privateKey: contextConfig.privateKey
         })
 
@@ -252,7 +252,9 @@ class SessionManager {
             context: {
                 name: contextName
             },
-            client: {},
+            client: {
+                environment: CONFIG.environment
+            },
             account
         })
 
