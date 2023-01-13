@@ -1,13 +1,10 @@
-import Verida from '@verida/datastore'
-import { v4 as uuidv4 } from 'uuid'
-import dotenv from 'dotenv'
-dotenv.config()
+import { AutoAccount } from '@verida/account-node'
 
-const APP_NAME = 'Vault: Auth Server'
+import { v4 as uuidv4 } from 'uuid'
 
 const connections = {}
 const requests = {}
-import { config as CONFIG } from '../config'
+import CONFIG from './config'
 
 function getRandomInt(min, max) {
     min = Math.ceil(min);
@@ -98,32 +95,43 @@ class SessionManager {
         }
     }
 
-    async generateRequestJwt(sessionId, appName) {
-        const appConfig = CONFIG[appName]
-        const veridaApp = new Verida({
-            chain: appConfig.chain,
-            address: appConfig.address,
-            privateKey: appConfig.privateKey,
-            appName: appName
+    async generateRequestJwt(sessionId, contextName) {
+        let contextConfig
+        if (CONFIG.CONTEXTS[contextName]) {
+            contextConfig = CONFIG.CONTEXTS[contextName]
+        } else {
+            if (CONFIG.DEFAULT_CONTEXT) {
+                contextConfig = CONFIG.CONTEXTS[CONFIG.DEFAULT_CONTEXT]
+            } else {
+                throw new Error(`Unknown application context (${contextName}): Not found in config`)
+            }
+        }
+
+        const account = new AutoAccount(DEFAULT_ENDPOINTS, {
+            environment: CONFIG.VERIDA_ENVIRONEMNT,
+            privateKey: contextConfig.PRIVATE_KEY,
+            didClientConfig: DID_CLIENT_CONFIG
         })
 
-        const EXPIRY_OFFSET = parseInt(process.env.EXPIRY_OFFSET)
-        const AUTH_URI = process.env.AUTH_URI
-        const LOGIN_DOMAIN = appConfig.loginDomain
+        const EXPIRY_OFFSET = CONFIG.EXPIRY_OFFSET
+        const AUTH_URI = CONFIG.AUTH_URI
+        const LOGIN_DOMAIN = contextConfig.loginDomain
         const now = Math.floor(Date.now() / 1000)
         const expiry = now + EXPIRY_OFFSET
 
         const data = {
             type: 'verida-wss-auth',
             session: sessionId,
-            appName: appName,
+            appName: contextName,
+            contextName,
             authUri: AUTH_URI,
             loginDomain: LOGIN_DOMAIN
         }
 
-        const didJwt = await veridaApp.user.createDidJwt(data, {
+        const didJwt = await account.createDidJwt(contextName, data, {
             expiry: expiry,
-            appName: appName
+            appName: appName,
+            contextName,
         })
 
         data.expiry = expiry
