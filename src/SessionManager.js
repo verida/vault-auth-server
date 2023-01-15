@@ -1,13 +1,12 @@
-import Verida from '@verida/datastore'
+import { Network } from "@verida/client-ts"
+import { AutoAccount } from "@verida/account-node"
 import { v4 as uuidv4 } from 'uuid'
-import dotenv from 'dotenv'
-dotenv.config()
-
-const APP_NAME = 'Vault: Auth Server'
+const _ = require("lodash")
 
 const connections = {}
 const requests = {}
-import { config as CONFIG } from '../config'
+const contexts = {}
+import CONFIG from './config'
 
 function getRandomInt(min, max) {
     min = Math.ceil(min);
@@ -17,11 +16,15 @@ function getRandomInt(min, max) {
 
 class SessionManager {
 
-    async connect(socket) {
+    async connect(socket, req) {
         const sessionId = uuidv4()
         console.log("Created session: " + sessionId)
 
-        connections[sessionId] = socket
+        connections[sessionId] = {
+            socket,
+            origin: req.headers.origin
+        }
+
         console.log("Total sessions: " + Object.keys(connections).length)
         console.log("Total pending requests: " + Object.keys(requests).length)
 
@@ -32,22 +35,75 @@ class SessionManager {
         const message = JSON.parse(messageJson)
         console.log(`Message received from ${sessionId}:`, message)
 
-        const socket = connections[sessionId]
+        if (!connections[sessionId]) {
+            // Unable to locate the session
+            console.err("Unable to locate session: ", sessionId)
+            return
+        }
+
+        const socket = connections[sessionId].socket
+        const origin = connections[sessionId].origin
 
         switch (message.type) {
             case 'generateJwt':
-                if (typeof(CONFIG[message.appName]) == 'undefined') {
+                const contextName = message.context
+                let contextConfig = null
+
+                try {
+                    contextConfig = this.getContextConfig(contextName)
+                } catch (err) {
                     socket.send(JSON.stringify({
                         type: "error",
-                        message: 'Invalid application name'
+                        message: `${err.message}.`
+                    }))
+                    return
+                }
+                
+                if (!contextConfig) {
+                    socket.send(JSON.stringify({
+                        type: "error",
+                        message: 'Context name not configured'
+                    }))
+                    return
+                }
+
+                if (!this.verifyRequestDomain(contextConfig, origin)) {
+                    socket.send(JSON.stringify({
+                        type: "error",
+                        message: 'Permission denied. Request has come from an unauthorized domain.'
+                    }))
+                    return
+                }
+
+                try {
+                    const requestJwt = await this.generateRequestJwt(sessionId, contextName, message.payload, origin)
+                    socket.send(JSON.stringify({
+                        type: "auth-client-request",
+                        message: requestJwt
+                    }))
+                } catch (err) {
+                    console.error(err.message)
+                    console.error(err)
+                    socket.send(JSON.stringify({
+                        type: "error",
+                        message: `Unknown error occurred generating request JWT for ${contextName}. Please try again.`
+                    }))
+                    return
+                }
+                
+                break
+            case 'getSession':
+                if (typeof(requests[message.data.sessionId]) == 'undefined') {
+                    socket.send(JSON.stringify({
+                        type: "error",
+                        message: 'Invalid session ID'
                     }))
                     break
                 }
 
-                const requestJwt = await this.generateRequestJwt(sessionId, message.appName)
                 socket.send(JSON.stringify({
-                    type: "auth-client-request",
-                    message: requestJwt
+                    type: "auth-session",
+                    message: requests[message.data.sessionId]
                 }))
                 break
             case 'responseJwt':
@@ -64,7 +120,7 @@ class SessionManager {
     }
 
     async processResponseJwt(sessionId, encryptedClientResponse) {
-        const clientSocket = connections[sessionId]
+        const clientSocket = connections[sessionId].socket
         this.gc()
 
         if (!clientSocket) {
@@ -81,7 +137,7 @@ class SessionManager {
         if (!request || this.hasRequestExpired(request)) {
             return {
                 success: false,
-                coide: 51,
+                code: 51,
                 message: `Request has expired, try reloading the QR code`
             }
         }
@@ -98,36 +154,34 @@ class SessionManager {
         }
     }
 
-    async generateRequestJwt(sessionId, appName) {
-        const appConfig = CONFIG[appName]
-        const veridaApp = new Verida({
-            chain: appConfig.chain,
-            address: appConfig.address,
-            privateKey: appConfig.privateKey,
-            appName: appName
-        })
+    async generateRequestJwt(sessionId, contextName, payload, origin) {
+        const context = await this.getContext(contextName)
+        const account = await context.getAccount()
+        const contextConfig = this.getContextConfig(contextName)
 
-        const EXPIRY_OFFSET = parseInt(process.env.EXPIRY_OFFSET)
-        const AUTH_URI = process.env.AUTH_URI
-        const LOGIN_DOMAIN = appConfig.loginDomain
+        const EXPIRY_OFFSET = parseInt(CONFIG.EXPIRY_OFFSET)
+        const AUTH_URI = CONFIG.AUTH_URI
+        const LOGIN_DOMAIN = contextConfig.loginOrigin ? contextConfig.loginOrigin : origin
         const now = Math.floor(Date.now() / 1000)
         const expiry = now + EXPIRY_OFFSET
+
+        payload = _.merge(payload, {
+            context: contextName,       // todo: update when we transition to context name not app name
+            loginDomain: LOGIN_DOMAIN
+        })
 
         const data = {
             type: 'verida-wss-auth',
             session: sessionId,
-            appName: appName,
-            authUri: AUTH_URI,
-            loginDomain: LOGIN_DOMAIN
+            authUri: AUTH_URI
         }
 
-        const didJwt = await veridaApp.user.createDidJwt(data, {
-            expiry: expiry,
-            appName: appName
+        const didJwt = await account.createDidJwt(contextName, data, {
+            expiry: expiry
         })
 
         data.expiry = expiry
-        requests[sessionId] = data
+        requests[sessionId] = payload
 
         return didJwt
     }
@@ -160,6 +214,66 @@ class SessionManager {
                 }
             }
         }
+    }
+
+    getContextConfig(contextName) {
+        if (!CONFIG.CONTEXTS[contextName]) {
+            if (!CONFIG.DEFAULT_CONTEXT || !CONFIG.CONTEXTS[CONFIG.DEFAULT_CONTEXT]) {
+                throw new Error(`Unsupported application context (${contextName})`)
+            }
+        }
+
+        const contextConfig = CONFIG.CONTEXTS[contextName] ? CONFIG.CONTEXTS[contextName] : CONFIG.CONTEXTS[CONFIG.DEFAULT_CONTEXT]
+        return contextConfig
+    }
+
+    async getContext(contextName) {
+        if (typeof(contexts[contextName]) !== "undefined") {
+            return contexts[contextName]
+        }
+
+        const contextConfig = this.getContextConfig(contextName)
+
+        const account = new AutoAccount({
+            defaultDatabaseServer: {
+                type: 'VeridaDatabase',
+                endpointUri: []
+            },
+            defaultMessageServer: {
+                type: 'VeridaMessage',
+                endpointUri: []
+            }
+        }, {
+            environment: CONFIG.VERIDA_ENVIRONMENT,
+            privateKey: contextConfig.privateKey,
+            didClientConfig: CONFIG.DID_CLIENT_CONFIG
+        })
+
+        const context = await Network.connect({
+            context: {
+                name: contextName
+            },
+            client: {
+                environment: CONFIG.VERIDA_ENVIRONMENT
+            },
+            account
+        })
+
+        contexts[contextName] = context
+        return contexts[contextName]
+    }
+
+    verifyRequestDomain(contextConfig, origin) {
+        if (contextConfig.origin && contextConfig.origin == origin) {
+            return true
+        }
+
+        if (!contextConfig.origin) {
+            // Permit requests from all origins, if there is no origin specified
+            return true
+        }
+
+        return false
     }
 
 }
