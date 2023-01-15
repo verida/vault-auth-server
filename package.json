@@ -1,34 +1,40 @@
 {
   "name": "@verida/vault-auth-server",
-  "version": "1.0.0",
-  "description": "Verida Vault Authentication Server: Facilitates authentication between the browser and Verida Vault",
+  "version": "2.0.0",
+  "description": "Verida Vault Authentication Server: Facilitates authentication between the browser and Verida mobile app",
   "main": "dist/server.js",
   "scripts": {
+    "clean": "rm -rf dist",
+    "build": "yarn clean && yarn babel src -d dist --extensions .js",
     "dev": "nodemon --exec babel-node src/server.js",
-    "build": "rm -rf dist && babel src -d dist --extensions '.js'",
-    "serve": "node dist/server.js"
+    "serve": "node --trace-warnings dist/server.js"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/verida/vault-auth-server.git"
   },
+  "engines": {
+    "node": "^14.0.0"
+  },
   "author": "",
-  "license": "ISC",
+  "license": "Apache-2.0",
   "bugs": {
     "url": "https://github.com/verida/vault-auth-server/issues"
   },
   "homepage": "https://github.com/verida/vault-auth-server#readme",
   "devDependencies": {
-    "@babel/cli": "^7.15.7",
-    "@babel/core": "^7.11.6",
-    "@babel/node": "^7.10.5",
-    "@babel/polyfill": "^7.11.5",
-    "@babel/preset-env": "^7.11.5",
-    "nodemon": "^2.0.4"
+    "@babel/cli": "^7.19.3",
+    "@babel/core": "^7.20.2",
+    "@babel/node": "^7.7.7",
+    "@babel/plugin-transform-runtime": "^7.16.7",
+    "@babel/polyfill": "^7.8.0",
+    "@babel/preset-env": "^7.20.2",
+    "nodemon": "^2.0.14",
+    "pouchdb": "^7.2.2",
+    "prettier": "2.5.1"
   },
   "dependencies": {
-    "@verida/account-node": "^1.1.2",
-    "@verida/client-ts": "^1.1.2",
+    "@verida/account-node": "^2.0.0-rc7",
     "body-parser": "^1.19.0",
     "cors": "^2.8.5",
     "dotenv": "^8.2.0",

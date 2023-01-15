@@ -1,13 +1,10 @@
 const WebSocket = require('ws')
 import SessionManager from './SessionManager'
 
-import dotenv from 'dotenv'
-dotenv.config()
-
-const PORT = process.env.PORT
+import CONFIG from './config/index'
 
 const wss = new WebSocket.Server({
-  port: PORT
+  port: CONFIG.PORT
 })
 
 wss.on('connection', async function connection(ws, req) {
