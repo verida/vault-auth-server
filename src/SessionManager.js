@@ -2,10 +2,6 @@ import { Network } from "@verida/client-ts"
 import { AutoAccount } from "@verida/account-node"
 import { v4 as uuidv4 } from 'uuid'
 const _ = require("lodash")
-import dotenv from 'dotenv'
-dotenv.config()
-
-import { v4 as uuidv4 } from 'uuid'
 
 const connections = {}
 const requests = {}
@@ -56,11 +52,9 @@ class SessionManager {
                 try {
                     contextConfig = this.getContextConfig(contextName)
                 } catch (err) {
-                    console.error(err.message)
-                    console.error(err)
                     socket.send(JSON.stringify({
                         type: "error",
-                        message: `Unknown error occurred fetching context config for ${contextName}. Please try again.`
+                        message: `${err.message}.`
                     }))
                     return
                 }
@@ -165,8 +159,8 @@ class SessionManager {
         const account = await context.getAccount()
         const contextConfig = this.getContextConfig(contextName)
 
-        const EXPIRY_OFFSET = parseInt(process.env.EXPIRY_OFFSET)
-        const AUTH_URI = process.env.AUTH_URI
+        const EXPIRY_OFFSET = parseInt(CONFIG.EXPIRY_OFFSET)
+        const AUTH_URI = CONFIG.AUTH_URI
         const LOGIN_DOMAIN = contextConfig.loginOrigin ? contextConfig.loginOrigin : origin
         const now = Math.floor(Date.now() / 1000)
         const expiry = now + EXPIRY_OFFSET
@@ -223,8 +217,13 @@ class SessionManager {
     }
 
     getContextConfig(contextName) {
-        const defaultContextConfig = CONFIG.defaultContext ? CONFIG.defaultContext : null
-        const contextConfig = CONFIG.contexts[contextName] ? CONFIG.contexts[contextName] : defaultContextConfig
+        if (!CONFIG.CONTEXTS[contextName]) {
+            if (!CONFIG.DEFAULT_CONTEXT || !CONFIG.CONTEXTS[CONFIG.DEFAULT_CONTEXT]) {
+                throw new Error(`Unsupported application context (${contextName})`)
+            }
+        }
+
+        const contextConfig = CONFIG.CONTEXTS[contextName] ? CONFIG.CONTEXTS[contextName] : CONFIG.CONTEXTS[CONFIG.DEFAULT_CONTEXT]
         return contextConfig
     }
 
@@ -234,18 +233,20 @@ class SessionManager {
         }
 
         const contextConfig = this.getContextConfig(contextName)
+
         const account = new AutoAccount({
             defaultDatabaseServer: {
                 type: 'VeridaDatabase',
-                endpointUri: 'https://db.testnet.verida.io:5001/'
+                endpointUri: []
             },
             defaultMessageServer: {
                 type: 'VeridaMessage',
-                endpointUri: 'https://db.testnet.verida.io:5001/'
+                endpointUri: []
             }
         }, {
-            environment: CONFIG.environment,
-            privateKey: contextConfig.privateKey
+            environment: CONFIG.VERIDA_ENVIRONMENT,
+            privateKey: contextConfig.privateKey,
+            didClientConfig: CONFIG.DID_CLIENT_CONFIG
         })
 
         const context = await Network.connect({
@@ -253,7 +254,7 @@ class SessionManager {
                 name: contextName
             },
             client: {
-                environment: CONFIG.environment
+                environment: CONFIG.VERIDA_ENVIRONMENT
             },
             account
         })
