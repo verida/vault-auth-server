@@ -1,9 +1,15 @@
-import { AutoAccount } from '@verida/account-node'
+import { Network } from "@verida/client-ts"
+import { AutoAccount } from "@verida/account-node"
+import { v4 as uuidv4 } from 'uuid'
+const _ = require("lodash")
+import dotenv from 'dotenv'
+dotenv.config()
 
 import { v4 as uuidv4 } from 'uuid'
 
 const connections = {}
 const requests = {}
+const contexts = {}
 import CONFIG from './config'
 
 function getRandomInt(min, max) {
@@ -14,11 +20,15 @@ function getRandomInt(min, max) {
 
 class SessionManager {
 
-    async connect(socket) {
+    async connect(socket, req) {
         const sessionId = uuidv4()
         console.log("Created session: " + sessionId)
 
-        connections[sessionId] = socket
+        connections[sessionId] = {
+            socket,
+            origin: req.headers.origin
+        }
+
         console.log("Total sessions: " + Object.keys(connections).length)
         console.log("Total pending requests: " + Object.keys(requests).length)
 
@@ -29,22 +39,77 @@ class SessionManager {
         const message = JSON.parse(messageJson)
         console.log(`Message received from ${sessionId}:`, message)
 
-        const socket = connections[sessionId]
+        if (!connections[sessionId]) {
+            // Unable to locate the session
+            console.err("Unable to locate session: ", sessionId)
+            return
+        }
+
+        const socket = connections[sessionId].socket
+        const origin = connections[sessionId].origin
 
         switch (message.type) {
             case 'generateJwt':
-                if (typeof(CONFIG[message.appName]) == 'undefined') {
+                const contextName = message.context
+                let contextConfig = null
+
+                try {
+                    contextConfig = this.getContextConfig(contextName)
+                } catch (err) {
+                    console.error(err.message)
+                    console.error(err)
                     socket.send(JSON.stringify({
                         type: "error",
-                        message: 'Invalid application name'
+                        message: `Unknown error occurred fetching context config for ${contextName}. Please try again.`
+                    }))
+                    return
+                }
+                
+                if (!contextConfig) {
+                    socket.send(JSON.stringify({
+                        type: "error",
+                        message: 'Context name not configured'
+                    }))
+                    return
+                }
+
+                if (!this.verifyRequestDomain(contextConfig, origin)) {
+                    socket.send(JSON.stringify({
+                        type: "error",
+                        message: 'Permission denied. Request has come from an unauthorized domain.'
+                    }))
+                    return
+                }
+
+                try {
+                    const requestJwt = await this.generateRequestJwt(sessionId, contextName, message.payload, origin)
+                    socket.send(JSON.stringify({
+                        type: "auth-client-request",
+                        message: requestJwt
+                    }))
+                } catch (err) {
+                    console.error(err.message)
+                    console.error(err)
+                    socket.send(JSON.stringify({
+                        type: "error",
+                        message: `Unknown error occurred generating request JWT for ${contextName}. Please try again.`
+                    }))
+                    return
+                }
+                
+                break
+            case 'getSession':
+                if (typeof(requests[message.data.sessionId]) == 'undefined') {
+                    socket.send(JSON.stringify({
+                        type: "error",
+                        message: 'Invalid session ID'
                     }))
                     break
                 }
 
-                const requestJwt = await this.generateRequestJwt(sessionId, message.appName)
                 socket.send(JSON.stringify({
-                    type: "auth-client-request",
-                    message: requestJwt
+                    type: "auth-session",
+                    message: requests[message.data.sessionId]
                 }))
                 break
             case 'responseJwt':
@@ -61,7 +126,7 @@ class SessionManager {
     }
 
     async processResponseJwt(sessionId, encryptedClientResponse) {
-        const clientSocket = connections[sessionId]
+        const clientSocket = connections[sessionId].socket
         this.gc()
 
         if (!clientSocket) {
@@ -78,7 +143,7 @@ class SessionManager {
         if (!request || this.hasRequestExpired(request)) {
             return {
                 success: false,
-                coide: 51,
+                code: 51,
                 message: `Request has expired, try reloading the QR code`
             }
         }
@@ -95,47 +160,34 @@ class SessionManager {
         }
     }
 
-    async generateRequestJwt(sessionId, contextName) {
-        let contextConfig
-        if (CONFIG.CONTEXTS[contextName]) {
-            contextConfig = CONFIG.CONTEXTS[contextName]
-        } else {
-            if (CONFIG.DEFAULT_CONTEXT) {
-                contextConfig = CONFIG.CONTEXTS[CONFIG.DEFAULT_CONTEXT]
-            } else {
-                throw new Error(`Unknown application context (${contextName}): Not found in config`)
-            }
-        }
+    async generateRequestJwt(sessionId, contextName, payload, origin) {
+        const context = await this.getContext(contextName)
+        const account = await context.getAccount()
+        const contextConfig = this.getContextConfig(contextName)
 
-        const account = new AutoAccount(DEFAULT_ENDPOINTS, {
-            environment: CONFIG.VERIDA_ENVIRONEMNT,
-            privateKey: contextConfig.PRIVATE_KEY,
-            didClientConfig: DID_CLIENT_CONFIG
-        })
-
-        const EXPIRY_OFFSET = CONFIG.EXPIRY_OFFSET
-        const AUTH_URI = CONFIG.AUTH_URI
-        const LOGIN_DOMAIN = contextConfig.loginDomain
+        const EXPIRY_OFFSET = parseInt(process.env.EXPIRY_OFFSET)
+        const AUTH_URI = process.env.AUTH_URI
+        const LOGIN_DOMAIN = contextConfig.loginOrigin ? contextConfig.loginOrigin : origin
         const now = Math.floor(Date.now() / 1000)
         const expiry = now + EXPIRY_OFFSET
+
+        payload = _.merge(payload, {
+            context: contextName,       // todo: update when we transition to context name not app name
+            loginDomain: LOGIN_DOMAIN
+        })
 
         const data = {
             type: 'verida-wss-auth',
             session: sessionId,
-            appName: contextName,
-            contextName,
-            authUri: AUTH_URI,
-            loginDomain: LOGIN_DOMAIN
+            authUri: AUTH_URI
         }
 
         const didJwt = await account.createDidJwt(contextName, data, {
-            expiry: expiry,
-            appName: appName,
-            contextName,
+            expiry: expiry
         })
 
         data.expiry = expiry
-        requests[sessionId] = data
+        requests[sessionId] = payload
 
         return didJwt
     }
@@ -168,6 +220,59 @@ class SessionManager {
                 }
             }
         }
+    }
+
+    getContextConfig(contextName) {
+        const defaultContextConfig = CONFIG.defaultContext ? CONFIG.defaultContext : null
+        const contextConfig = CONFIG.contexts[contextName] ? CONFIG.contexts[contextName] : defaultContextConfig
+        return contextConfig
+    }
+
+    async getContext(contextName) {
+        if (typeof(contexts[contextName]) !== "undefined") {
+            return contexts[contextName]
+        }
+
+        const contextConfig = this.getContextConfig(contextName)
+        const account = new AutoAccount({
+            defaultDatabaseServer: {
+                type: 'VeridaDatabase',
+                endpointUri: 'https://db.testnet.verida.io:5001/'
+            },
+            defaultMessageServer: {
+                type: 'VeridaMessage',
+                endpointUri: 'https://db.testnet.verida.io:5001/'
+            }
+        }, {
+            environment: CONFIG.environment,
+            privateKey: contextConfig.privateKey
+        })
+
+        const context = await Network.connect({
+            context: {
+                name: contextName
+            },
+            client: {
+                environment: CONFIG.environment
+            },
+            account
+        })
+
+        contexts[contextName] = context
+        return contexts[contextName]
+    }
+
+    verifyRequestDomain(contextConfig, origin) {
+        if (contextConfig.origin && contextConfig.origin == origin) {
+            return true
+        }
+
+        if (!contextConfig.origin) {
+            // Permit requests from all origins, if there is no origin specified
+            return true
+        }
+
+        return false
     }
 
 }
