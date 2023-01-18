@@ -9,13 +9,15 @@ A web socket server that bridges connections between a mobile device and a web p
 npm run start
 ```
 
-## Configuration
+### Configuration
 
-Update `.env` / `AUTH_URI` to match the domain name / IP address of this server. You will also need to configure the Auth Client library to use this value as the `serverUri`.
+There is an example configuration file located in `src/config/index.example.js`. Copy this file to `src/config/index.js`.
 
-You must configure each application this server will support by editing the `config/index.js` file.
+You must update `AUTH_URI` to match the domain name / IP address of the server. You will also need to configure the Auth Client library to use this value as the `serverUri`. See [Verida Connect SDK / Getting Started / Configuration](https://developers.verida.io/docs/single-sign-on-sdk/getting-started#configuration).
 
-The object key corresponds to the application name and the object properties correspond to the private key being used ot sign authentication requests and the domain name initiating the sign on request.
+You must configure each application this server will support in the `CONTEXTS` section. You can specify a different private key per context. All data is encrypted and signed using the private key. This enables the data to be decrypted by the end user and in the future, will enable Application Contexts to be registered to specific keys, providing enhanced man-in-the-middle attack protection.
+
+You must specify valid `DID_CLIENT_CONFIG` if you are registering a new Verida Account (DID) with the private key of a context. See [Client SDK / Authentication / Private Key](https://developers.verida.io/docs/client-sdk/authentication#2-private-key).
 
 # Security
 
