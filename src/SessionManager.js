@@ -156,12 +156,8 @@ class SessionManager {
 
     async generateRequestJwt(sessionId, contextName, payload, origin) {
         const context = await this.getContext(contextName)
-        const account = await context.getAccount()
         const contextConfig = this.getContextConfig(contextName)
 
-<<<<<<< Updated upstream
-        const EXPIRY_OFFSET = parseInt(CONFIG.EXPIRY_OFFSET)
-=======
         const account = new AutoAccount({
             environment: CONFIG.VERIDA_ENVIRONEMNT,
             privateKey: contextConfig.PRIVATE_KEY,
@@ -169,7 +165,6 @@ class SessionManager {
         })
 
         const EXPIRY_OFFSET = CONFIG.EXPIRY_OFFSET
->>>>>>> Stashed changes
         const AUTH_URI = CONFIG.AUTH_URI
         const LOGIN_DOMAIN = contextConfig.loginOrigin ? contextConfig.loginOrigin : origin
         const now = Math.floor(Date.now() / 1000)
