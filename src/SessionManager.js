@@ -169,6 +169,7 @@ class SessionManager {
 
     async generateRequestJwt(sessionId, contextName, payload, origin) {
         const context = await this.getContext(contextName)
+        const account = await context.getAccount()
         const contextConfig = this.getContextConfig(contextName)
 
         const EXPIRY_OFFSET = CONFIG.EXPIRY_OFFSET
