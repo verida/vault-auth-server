@@ -35,6 +35,7 @@
   },
   "dependencies": {
     "@verida/account-node": "^2.3.5",
+    "@verida/client-ts": "^2.3.5",
     "body-parser": "^1.19.0",
     "cors": "^2.8.5",
     "dotenv": "^8.2.0",
