@@ -44,78 +44,91 @@ class SessionManager {
         const socket = connections[sessionId].socket
         const origin = connections[sessionId].origin
 
-        switch (message.type) {
-            case 'generateJwt':
-                const contextName = message.context
-                let contextConfig = null
+        try {
+            switch (message.type) {
+                case 'generateJwt':
+                    const contextName = message.context
+                    let contextConfig = null
 
-                try {
-                    contextConfig = this.getContextConfig(contextName)
-                } catch (err) {
-                    socket.send(JSON.stringify({
-                        type: "error",
-                        message: `${err.message}.`
-                    }))
-                    return
-                }
-                
-                if (!contextConfig) {
-                    socket.send(JSON.stringify({
-                        type: "error",
-                        message: 'Context name not configured'
-                    }))
-                    return
-                }
+                    try {
+                        contextConfig = this.getContextConfig(contextName)
+                    } catch (err) {
+                        socket.send(JSON.stringify({
+                            type: "error",
+                            message: `${err.message}.`
+                        }))
+                        return
+                    }
+                    
+                    if (!contextConfig) {
+                        socket.send(JSON.stringify({
+                            type: "error",
+                            message: 'Context name not configured'
+                        }))
+                        return
+                    }
 
-                if (!this.verifyRequestDomain(contextConfig, origin)) {
-                    socket.send(JSON.stringify({
-                        type: "error",
-                        message: 'Permission denied. Request has come from an unauthorized domain.'
-                    }))
-                    return
-                }
+                    if (!this.verifyRequestDomain(contextConfig, origin)) {
+                        socket.send(JSON.stringify({
+                            type: "error",
+                            message: 'Permission denied. Request has come from an unauthorized domain.'
+                        }))
+                        return
+                    }
 
-                try {
-                    const requestJwt = await this.generateRequestJwt(sessionId, contextName, message.payload, origin)
+                    try {
+                        const requestJwt = await this.generateRequestJwt(sessionId, contextName, message.payload, origin)
+                        socket.send(JSON.stringify({
+                            type: "auth-client-request",
+                            message: requestJwt
+                        }))
+                    } catch (err) {
+                        console.error(err.message)
+                        console.error(err)
+                        socket.send(JSON.stringify({
+                            type: "error",
+                            message: `Unknown error occurred generating request JWT for ${contextName}. Please try again.`
+                        }))
+                        return
+                    }
+                    
+                    break
+                case 'getSession':
+                    if (typeof(requests[message.data.sessionId]) == 'undefined') {
+                        socket.send(JSON.stringify({
+                            type: "error",
+                            message: 'Invalid session ID'
+                        }))
+                        break
+                    }
+
                     socket.send(JSON.stringify({
-                        type: "auth-client-request",
-                        message: requestJwt
-                    }))
-                } catch (err) {
-                    console.error(err.message)
-                    console.error(err)
-                    socket.send(JSON.stringify({
-                        type: "error",
-                        message: `Unknown error occurred generating request JWT for ${contextName}. Please try again.`
-                    }))
-                    return
-                }
-                
-                break
-            case 'getSession':
-                if (typeof(requests[message.data.sessionId]) == 'undefined') {
-                    socket.send(JSON.stringify({
-                        type: "error",
-                        message: 'Invalid session ID'
+                        type: "auth-session",
+                        message: requests[message.data.sessionId]
                     }))
                     break
-                }
-
-                socket.send(JSON.stringify({
-                    type: "auth-session",
-                    message: requests[message.data.sessionId]
-                }))
-                break
-            case 'responseJwt':
-                const response = await this.processResponseJwt(message.sessionId, message.data)
-                delete requests[message.sessionId]
-                socket.send(JSON.stringify({
-                    type: "auth-vault-response",
-                    ...response
-                }))
-            default:
-                // do nothing
-                break
+                case 'responseJwt':
+                    const response = await this.processResponseJwt(message.sessionId, message.data)
+                    delete requests[message.sessionId]
+                    socket.send(JSON.stringify({
+                        type: "auth-vault-response",
+                        ...response
+                    }))
+                default:
+                    // do nothing
+                    break
+            }
+        }
+        catch (err) {
+            const response = {
+                success: false,
+                code: 60,
+                message: `Unknown error: ${err.message}`
+            }
+            socket.send(JSON.stringify({
+                type: "auth-vault-response",
+                ...response
+            }))
         }
     }
 
@@ -159,17 +172,7 @@ class SessionManager {
         const account = await context.getAccount()
         const contextConfig = this.getContextConfig(contextName)
 
-<<<<<<< Updated upstream
-        const EXPIRY_OFFSET = parseInt(CONFIG.EXPIRY_OFFSET)
-=======
-        const account = new AutoAccount({
-            environment: CONFIG.VERIDA_ENVIRONEMNT,
-            privateKey: contextConfig.PRIVATE_KEY,
-            didClientConfig: DID_CLIENT_CONFIG
-        })
-
         const EXPIRY_OFFSET = CONFIG.EXPIRY_OFFSET
->>>>>>> Stashed changes
         const AUTH_URI = CONFIG.AUTH_URI
         const LOGIN_DOMAIN = contextConfig.loginOrigin ? contextConfig.loginOrigin : origin
         const now = Math.floor(Date.now() / 1000)
@@ -245,15 +248,6 @@ class SessionManager {
         const contextConfig = this.getContextConfig(contextName)
 
         const account = new AutoAccount({
-            defaultDatabaseServer: {
-                type: 'VeridaDatabase',
-                endpointUri: []
-            },
-            defaultMessageServer: {
-                type: 'VeridaMessage',
-                endpointUri: []
-            }
-        }, {
             environment: CONFIG.VERIDA_ENVIRONMENT,
             privateKey: contextConfig.privateKey,
             didClientConfig: CONFIG.DID_CLIENT_CONFIG
