@@ -36,7 +36,6 @@ class SessionManager {
     async message(sessionId, messageJson) {
         const message = JSON.parse(messageJson)
         this.gc()
-        console.log(`Message received from ${sessionId}:`, message)
 
         if (!connections[sessionId]) {
             // Unable to locate the session
