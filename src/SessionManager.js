@@ -20,9 +20,11 @@ class SessionManager {
         const sessionId = uuidv4()
         console.log("Created session: " + sessionId)
 
+        const now = Math.floor(Date.now() / 1000)
         connections[sessionId] = {
             socket,
-            origin: req.headers.origin
+            origin: req.headers.origin,
+            created: now
         }
 
         console.log("Total sessions: " + Object.keys(connections).length)
@@ -33,6 +35,7 @@ class SessionManager {
 
     async message(sessionId, messageJson) {
         const message = JSON.parse(messageJson)
+        this.gc()
         console.log(`Message received from ${sessionId}:`, message)
 
         if (!connections[sessionId]) {
@@ -144,10 +147,10 @@ class SessionManager {
             }
         }
 
-        const request = requests[sessionId]
+        const connection = connections[sessionId]
 
         // Verify the request hasn't expired for this session
-        if (!request || this.hasRequestExpired(request)) {
+        if (!request || this.hasConnectionExpired(connection)) {
             return {
                 success: false,
                 code: 51,
@@ -204,10 +207,10 @@ class SessionManager {
         delete connections[sessionId]
     }
 
-    hasRequestExpired(request) {
+    hasConnectionExpired(connection) {
         // Verify the request hasn't expired for this session
         const now = Math.floor(Date.now() / 1000)
-        const expiry = request.expiry
+        const expiry = connection.created + CONFIG.EXPIRY_OFFSET
 
         if (expiry < now) {
             return true
@@ -217,15 +220,27 @@ class SessionManager {
     }
 
     // Garbage collect expired requests 5% of the time
+    // @todo: need to expire sessions that are over a particular age
     gc() {
+        // GC runs 5% of the time
         const random = getRandomInt(0,20)
         if (random == 1) {
-            for (var i in requests) {
-                let request = requests[i]
-                if (this.hasRequestExpired(request)) {
-                    delete requests[i]
+            let count = 0
+            console.log(`Running garbage collection on ${Object.keys(connections).length} sessions`)
+            for (let sessionId in connections) {
+                let connection = connections[sessionId]
+                if (this.hasConnectionExpired(connection)) {
+                    //console.log(`Deleting expired connection and request for sessionId: ${sessionId}`)
+                    count++
+                    delete connections[sessionId]
+                    delete requests[sessionId]
                 }
             }
+
+            console.log(`Deleted ${count} expired requests`)
+        }
+        else {
+            console.log('Garbage collection skipped')
         }
     }
 
@@ -258,7 +273,10 @@ class SessionManager {
                 name: contextName
             },
             client: {
-                environment: CONFIG.VERIDA_ENVIRONMENT
+                environment: CONFIG.VERIDA_ENVIRONMENT,
+                didClientConfig: {
+                    rpcUrl: CONFIG.DID_CLIENT_CONFIG.web3Config.rpcUrl
+                }
             },
             account
         })
