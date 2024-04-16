@@ -14,7 +14,7 @@
     "url": "git+https://github.com/verida/vault-auth-server.git"
   },
   "engines": {
-    "node": "^14.0.0"
+    "node": "^18.0.0"
   },
   "author": "",
   "license": "Apache-2.0",
@@ -34,8 +34,8 @@
     "prettier": "2.5.1"
   },
   "dependencies": {
-    "@verida/account-node": "^2.3.5",
-    "@verida/client-ts": "^2.3.5",
+    "@verida/account-node": "^3.0.2",
+    "@verida/client-ts": "^3.0.3",
     "body-parser": "^1.19.0",
     "cors": "^2.8.5",
     "dotenv": "^8.2.0",
