@@ -146,10 +146,10 @@ class SessionManager {
             }
         }
 
-        const connection = connections[sessionId]
+        const request = requests[sessionId]
 
         // Verify the request hasn't expired for this session
-        if (!request || this.hasConnectionExpired(connection)) {
+        if (!request || this.hasRequestExpired(request)) {
             return {
                 success: false,
                 code: 51,
