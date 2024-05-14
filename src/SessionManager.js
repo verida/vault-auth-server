@@ -39,7 +39,7 @@ class SessionManager {
 
         if (!connections[sessionId]) {
             // Unable to locate the session
-            console.err("Unable to locate session: ", sessionId)
+            console.error("Unable to locate session: ", sessionId)
             return
         }
 
